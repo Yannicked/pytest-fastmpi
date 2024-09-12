@@ -54,6 +54,7 @@ def test_mpi_comm_size(pytester, communicator):
         # check that all 2 tests passed
         result.assert_outcomes(passed=3)
 
+
 @pytest.mark.mpi
 def test_mpi_fail(pytester, communicator):
     """Make sure that our plugin works."""
@@ -83,8 +84,6 @@ def test_mpi_fail(pytester, communicator):
     if communicator.rank == 0:
         # check that all 2 tests passed
         result.assert_outcomes(failed=3)
-
-
 
 
 def test_nompi(pytester):

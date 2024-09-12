@@ -11,15 +11,18 @@ import sys
 ## Defines
 MPI_ARG = "--mpi"
 
+
 @dataclasses.dataclass(frozen=False)
 class MPIRunner:
-    __slots__ = ("active","communicator")
+    __slots__ = ("active", "communicator")
 
     active: bool
 
     communicator: Any
 
+
 MPIRunner_key = StashKey[Optional[MPIRunner]]()
+
 
 class MPIRunnerPlugin:
     def pytest_collection_modifyitems(self, config, items):
@@ -39,7 +42,7 @@ class MPIRunnerPlugin:
 
             if MPI.COMM_WORLD.rank != 0:
                 # Disable output on all non-master ranks
-                #config.pluginmanager.set_blocked(name="terminalreporter")
+                # config.pluginmanager.set_blocked(name="terminalreporter")
                 # Very hacky
                 sys.stdout = open(os.devnull, "w")
 
@@ -47,7 +50,7 @@ class MPIRunnerPlugin:
         comm = MPI.COMM_WORLD
         rank = comm.rank
 
-        split_rank = comm.Split(color = rank < size, key =rank)
+        split_rank = comm.Split(color=rank < size, key=rank)
         return split_rank
 
     @hookimpl(tryfirst=True)
@@ -64,12 +67,14 @@ class MPIRunnerPlugin:
         comm.Barrier()
 
         test_size = mpi_marker.kwargs.get("np", size)
-        
+
         split_communicator = self.create_communicator(test_size)
         active = rank < test_size
         item.stash[MPIRunner_key] = MPIRunner(active, split_communicator)
         if not active:
-            raise skip.Exception("MPI rank not required in test", _use_item_location=True)
+            raise skip.Exception(
+                "MPI rank not required in test", _use_item_location=True
+            )
 
     def gather_results_from_ranks(self, communicator, rep):
         results = communicator.gather(rep, root=0)
@@ -97,6 +102,7 @@ class MPIRunnerPlugin:
                 mpi_data.communicator.Free()
         return rep
 
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "mpi(np): Run test with n amout of mpi ranks")
 
@@ -117,4 +123,3 @@ def communicator(request):
         raise RuntimeError("No MPIRunner data found in stash")
 
     return mpi_data.communicator
-
