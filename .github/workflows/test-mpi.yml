@@ -1,0 +1,42 @@
+name: Python MPI test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        mpi: [ 'mpich', 'openmpi', 'intelmpi']
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@v1
+      with:
+        mpi: ${{ matrix.mpi }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install ruff
+        pip install -e .
+    - name: Lint with ruff
+      run: |
+        ruff format --check
+        ruff check
+    - name: Test with pytest
+      run: |
+        pytest
+    - name: Test with MPI pytest
+      run: |
+        mpiexec -np 4 pytest --mpi
