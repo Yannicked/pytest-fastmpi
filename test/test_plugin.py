@@ -54,6 +54,38 @@ def test_mpi_comm_size(pytester, communicator):
         # check that all 2 tests passed
         result.assert_outcomes(passed=3)
 
+@pytest.mark.mpi
+def test_mpi_fail(pytester, communicator):
+    """Make sure that our plugin works."""
+
+    # create a temporary pytest test file
+    pytester.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.mpi(np=2)
+        def test_mpi_fail_master(communicator):
+            assert communicator.rank != 0
+        
+        @pytest.mark.mpi(np=2)
+        def test_mpi_non_master(communicator):
+            assert communicator.rank == 0
+
+        @pytest.mark.mpi(np=2)
+        def test_mpi_all(communicator):
+            assert False
+    """
+    )
+
+    # run all tests with pytest
+    result = pytester.runpytest("--mpi")
+
+    if communicator.rank == 0:
+        # check that all 2 tests passed
+        result.assert_outcomes(failed=3)
+
+
+
 
 def test_nompi(pytester):
     """Make sure that our plugin works."""

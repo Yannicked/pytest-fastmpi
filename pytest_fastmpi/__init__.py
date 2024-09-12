@@ -1,8 +1,25 @@
 import pytest
+import dataclasses
+from typing import Any, Optional
+from _pytest.stash import StashKey
+from _pytest.outcomes import skip
+from _pytest.config import hookimpl
+from mpi4py import MPI
+import os
+import sys
 
 ## Defines
 MPI_ARG = "--mpi"
 
+@dataclasses.dataclass(frozen=False)
+class MPIRunner:
+    __slots__ = ("active","communicator")
+
+    active: bool
+
+    communicator: Any
+
+MPIRunner_key = StashKey[Optional[MPIRunner]]()
 
 class MPIRunnerPlugin:
     def pytest_collection_modifyitems(self, config, items):
@@ -22,8 +39,63 @@ class MPIRunnerPlugin:
 
             if MPI.COMM_WORLD.rank != 0:
                 # Disable output on all non-master ranks
-                config.pluginmanager.set_blocked(name="terminalreporter")
+                #config.pluginmanager.set_blocked(name="terminalreporter")
+                # Very hacky
+                sys.stdout = open(os.devnull, "w")
 
+    def create_communicator(self, size):
+        comm = MPI.COMM_WORLD
+        rank = comm.rank
+
+        split_rank = comm.Split(color = rank < size, key =rank)
+        return split_rank
+
+    @hookimpl(tryfirst=True)
+    def pytest_runtest_setup(self, item):
+        comm = MPI.COMM_WORLD
+        size = comm.size
+        rank = comm.rank
+
+        mpi_marker = item.get_closest_marker("mpi")
+
+        if mpi_marker is None:
+            return
+
+        comm.Barrier()
+
+        test_size = mpi_marker.kwargs.get("np", size)
+        
+        split_communicator = self.create_communicator(test_size)
+        active = rank < test_size
+        item.stash[MPIRunner_key] = MPIRunner(active, split_communicator)
+        if not active:
+            raise skip.Exception("MPI rank not required in test", _use_item_location=True)
+
+    def gather_results_from_ranks(self, communicator, rep):
+        results = communicator.gather(rep, root=0)
+        if communicator.rank != 0:
+            return rep
+
+        reprs = []
+        for rank, result in enumerate(results):
+            if result.outcome == "failed":
+                rep.outcome = "failed"
+                reprs.append(f"===Rank: {rank}===\n{result.longrepr}")
+        if rep.outcome == "failed":
+            rep.longrepr = "\n\n".join(reprs)
+        return rep
+
+    @hookimpl(wrapper=True)
+    def pytest_runtest_makereport(self, item, call):
+        rep = yield
+        mpi_data = item.stash.get(MPIRunner_key, None)
+        if mpi_data and mpi_data.active:
+            rep = self.gather_results_from_ranks(mpi_data.communicator, rep)
+        if mpi_data:
+            mpi_data.communicator.Barrier()
+            if call.when == "teardown":
+                mpi_data.communicator.Free()
+        return rep
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "mpi(np): Run test with n amout of mpi ranks")
@@ -40,37 +112,9 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def communicator(request):
-    from mpi4py import MPI
+    mpi_data = request.node.stash.get(MPIRunner_key, None)
+    if not mpi_data:
+        raise RuntimeError("No MPIRunner data found in stash")
 
-    mpi_marker = request.node.get_closest_marker("mpi")
-    if not mpi_marker:
-        raise RuntimeError("No MPI marker found!")
+    return mpi_data.communicator
 
-    comm_size = mpi_marker.kwargs.get("np")
-
-    comm = MPI.COMM_WORLD
-
-    size = comm.size
-    rank = comm.rank
-
-    comm.Barrier()
-
-    if comm_size is None:
-        yield comm
-    else:
-        if comm_size > size:
-            raise RuntimeError(
-                f"np ({comm_size}) must be smaller than the total amount of mpi ranks ({size})"
-            )
-
-        my_comm = comm.Split(color=rank < comm_size, key=rank)
-
-        if rank >= comm_size:
-            comm.Barrier()
-            pytest.skip("MPI-rank not required")
-
-        yield my_comm
-
-        my_comm.Free()
-
-    comm.Barrier()
