@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.mpi
 def test_mpi(pytester, communicator):
     """Make sure that our plugin works."""
@@ -53,6 +54,7 @@ def test_mpi_comm_size(pytester, communicator):
         # check that all 2 tests passed
         result.assert_outcomes(passed=3)
 
+
 def test_nompi(pytester):
     """Make sure that our plugin works."""
 
@@ -72,4 +74,3 @@ def test_nompi(pytester):
 
     # check that all 2 tests passed
     result.assert_outcomes(passed=1)
-
