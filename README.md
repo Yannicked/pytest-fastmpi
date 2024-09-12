@@ -42,10 +42,13 @@ The `communicator` fixture provides access to the MPI communicator. You can use 
 Example test using the `communicator` fixture:
 
 ```python
+import pytest
+
+@pytest.mark.mpi(np=3)
 def test_communicator(communicator):
     rank = communicator.Get_rank()
     size = communicator.Get_size()
-    assert size > 1  # Ensure there is more than one MPI process
+    assert size == 3  # Ensure there are exactly three ranks in this communicator
 ```
 
 ## Contributing
