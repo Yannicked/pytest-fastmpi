@@ -1,0 +1,30 @@
+[project]
+name = "pytest-fastmpi"
+version = "0.0.1"
+description = "A pytest plugin to run MPI tests with pytest and mpi4py"
+authors = [{ name = "Yannick de Jong" }]
+license = { text = "MIT" }
+readme = "README.md"
+keywords = ["pytest", "mpi", "testing", "parallel", "mpi4py"]
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Distributed Computing",
+]
+dependencies = ["pytest", "mpi4py"]
+
+[project.urls]
+Homepage = "https://github.com/Yannicked/pytest-fastmpi"
+Repository = "https://github.com/Yannicked/pytest-fastmpi"
+
+[project.entry-points.pytest11]
+pytest_mpirun = "pytest_fastmpi"
+
+[tool.pytest.ini_options]
+addopts = "-v"
+markers = "mpi: mark a test as requiring MPI to run"
+
