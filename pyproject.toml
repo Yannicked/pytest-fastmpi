@@ -17,6 +17,11 @@ classifiers = [
 ]
 dependencies = ["pytest", "mpi4py"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest-cov"
+]
+
 [project.urls]
 Homepage = "https://github.com/Yannicked/pytest-fastmpi"
 Repository = "https://github.com/Yannicked/pytest-fastmpi"

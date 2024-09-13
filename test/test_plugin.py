@@ -13,6 +13,9 @@ def test_mpi(pytester, communicator):
         @pytest.mark.mpi
         def test_mpi(communicator):
             assert communicator.size > 0
+
+        def test_nompi():
+            assert True
     """
     )
 
@@ -21,7 +24,7 @@ def test_mpi(pytester, communicator):
 
     if communicator.rank == 0:
         # check that all 2 tests passed
-        result.assert_outcomes(passed=1)
+        result.assert_outcomes(passed=1, skipped=1)
 
 
 @pytest.mark.mpi
@@ -94,8 +97,11 @@ def test_nompi(pytester):
         """
         import pytest
 
+        @pytest.mark.mpi
+        def test_mpi(communicator):
+            assert communicator.size > 0
+
         def test_non_mpi():
-            print("Non-mpi")
             assert True
     """
     )
@@ -104,4 +110,58 @@ def test_nompi(pytester):
     result = pytester.runpytest()
 
     # check that all 2 tests passed
-    result.assert_outcomes(passed=1)
+    result.assert_outcomes(passed=1, skipped=1)
+
+
+@pytest.mark.mpi
+def test_junitxml(pytester, communicator):
+    # create a temporary pytest test file
+    pytester.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.mpi
+        def test_mpi(communicator):
+            assert communicator.size > 0
+
+        def test_nompi():
+            assert True
+    """
+    )
+
+    # run all tests with pytest
+    result = pytester.runpytest("--mpi", "--junitxml=pytest_report_mpi.xml")
+
+    if communicator.rank == 0:
+        # check that all 2 tests passed
+        result.assert_outcomes(passed=1, skipped=1)
+
+
+@pytest.mark.mpi
+def test_cov(pytester, communicator):
+    # create a temporary pytest test file
+    pytester.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.mpi
+        def test_mpi(communicator):
+            assert communicator.size > 0
+
+        def test_nompi():
+            assert True
+    """
+    )
+
+    # run all tests with pytest
+    result = pytester.runpytest(
+        "--mpi",
+        "--cov",
+        "--cov-report=xml:coverage_mpi.xml",
+        "--cov-branch",
+        "--cov-report=term",
+    )
+
+    if communicator.rank == 0:
+        # check that all 2 tests passed
+        result.assert_outcomes(passed=1, skipped=1)
