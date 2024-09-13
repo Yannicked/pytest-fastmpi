@@ -45,6 +45,8 @@ class MPIRunnerPlugin:
                 # config.pluginmanager.set_blocked(name="terminalreporter")
                 # Very hacky
                 sys.stdout = open(os.devnull, "w")
+                config.workerinput = None
+                config.pluginmanager.set_blocked(name="_cov")
 
     def create_communicator(self, size):
         comm = MPI.COMM_WORLD
